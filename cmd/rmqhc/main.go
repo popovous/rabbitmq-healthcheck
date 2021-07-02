@@ -5,11 +5,15 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/hellofresh/health-go/v4/checks/rabbitmq"
+	"github.com/popovous/rabbitmq-healthcheck/internal/rmq"
+
 	"github.com/popovous/rabbitmq-healthcheck/internal/fetcher"
 )
 
 var (
 	fetcherURL = flag.String("fetcher.url", "", "Remote Cloud URL.")
+	amqpDSN    = flag.String("amqp.url", "", "Remote AMQP URL.")
 )
 
 type CurrentStatus struct {
@@ -43,6 +47,9 @@ func newRootPageHandler(fetcher fetcher.Fetcher) func(w http.ResponseWriter, r *
 
 func handleRequests(f fetcher.Fetcher) {
 	http.HandleFunc("/", newRootPageHandler(f))
+	http.HandleFunc("/health", rmq.NewHealthHandler(rabbitmq.Config{
+		DSN: *amqpDSN,
+	}))
 	http.ListenAndServe(":31337", nil)
 }
 
