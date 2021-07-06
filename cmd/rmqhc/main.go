@@ -49,7 +49,7 @@ func handleRequests(f fetcher.Fetcher) {
 	http.HandleFunc("/", newRootPageHandler(f))
 	http.HandleFunc("/health", rmq.NewHealthHandler(rabbitmq.Config{
 		DSN: *amqpDSN,
-	}))
+	}, f))
 	http.ListenAndServe(":31337", nil)
 }
 
