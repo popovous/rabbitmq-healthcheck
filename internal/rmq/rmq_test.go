@@ -18,6 +18,11 @@ func TestParseHostname(t *testing.T) {
 			nodeName: "rabbit@",
 			expected: "",
 		},
+		{
+			testName: "valid host",
+			nodeName: "rabbit@some_name",
+			expected: "some_name",
+		},
 	}
 
 	for _, v := range testData {

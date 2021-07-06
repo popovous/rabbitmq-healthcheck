@@ -25,7 +25,7 @@ func isInCluster(info []clusterinfo.Members, hostname string) bool {
 	for _, v := range info {
 		host := parseHostname(v.Name)
 		if hostname == host {
-			return true
+			return v.Running
 		}
 	}
 	return false
@@ -41,9 +41,9 @@ func NewHealthHandler(config rabbitmq.Config, ftch fetcher.Fetcher) func(w http.
 			host = ""
 		}
 
-		inCluster := isInCluster(cluster, host)
-		if !inCluster {
-			log.Printf("[health-check] got node not in cluster")
+		isRunning := isInCluster(cluster, host)
+		if !isRunning {
+			log.Printf("[health-check] got node not in cluster or not running")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
