@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"html/template"
 	"net/http"
 
 	"github.com/hellofresh/health-go/v4/checks/rabbitmq"
@@ -17,38 +16,8 @@ var (
         listenAddr = flag.String("listen.addr", "", "AMQP URL.")
 )
 
-type CurrentStatus struct {
-	NodesCount, NodesRunning uint16
-}
-
-func newRootPageHandler(fetcher fetcher.Fetcher) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cluster := fetcher.GetClusterInfo()
-
-		nodesRunning := 0
-		nodesCount := 0
-
-		for _, v := range cluster {
-			//fmt.Fprintf(w, v.Name+"\n")
-			nodesCount++
-			if v.Running {
-				nodesRunning++
-			}
-		}
-
-		if nodesRunning == 1 {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-
-		htmlValues := CurrentStatus{uint16(nodesCount), uint16(nodesRunning)}
-		tmpl, _ := template.ParseFiles("templates/main.html")
-		tmpl.Execute(w, htmlValues)
-	}
-}
-
 func handleRequests(f fetcher.Fetcher) {
-	http.HandleFunc("/", newRootPageHandler(f))
-	http.HandleFunc("/health", rmq.NewHealthHandler(rabbitmq.Config{
+	http.HandleFunc("/", rmq.NewHealthHandler(rabbitmq.Config{
 		DSN: *amqpDSN,
 	}, f))
 	http.ListenAndServe(*listenAddr, nil)
