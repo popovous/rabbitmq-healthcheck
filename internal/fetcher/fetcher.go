@@ -60,7 +60,7 @@ func (d *defaultFetcher) fetch() ([]clusterinfo.Members, error) {
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data from cloud: %s", err)
+		return nil, fmt.Errorf("failed to fetch data from RabbitMQ Management: %s", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -68,7 +68,7 @@ func (d *defaultFetcher) fetch() ([]clusterinfo.Members, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response from cloud: %s", err)
+		return nil, fmt.Errorf("failed to read response from RabbitMQ Management: %s", err)
 	}
 
 	var members []clusterinfo.Members
@@ -86,12 +86,12 @@ func (d *defaultFetcher) Start() {
 	go func() {
 		defer t.Stop()
 		for {
-			log.Println("trying to fetch data from cloud")
+			log.Println("trying to fetch data from RabbitMQ Management")
 			members, err := d.fetch()
 			if err != nil {
 				log.Println(err)
 			} else {
-				log.Println("successfully fetched data from cloud")
+				log.Println("successfully fetched data from RabbitMQ Management")
 				d.mu.Lock()
 				d.data = members
 				d.mu.Unlock()

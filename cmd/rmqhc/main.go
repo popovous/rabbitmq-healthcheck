@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	fetcherURL = flag.String("fetcher.url", "", "Remote Cloud URL.")
-	amqpDSN    = flag.String("amqp.url", "", "Remote AMQP URL.")
+	fetcherURL = flag.String("fetcher.url", "", "RabbitMQ Managment URL.")
+	amqpDSN    = flag.String("amqp.url", "", "AMQP URL.")
+        listenAddr = flag.String("listen.addr", "", "AMQP URL.")
 )
 
 type CurrentStatus struct {
@@ -50,7 +51,7 @@ func handleRequests(f fetcher.Fetcher) {
 	http.HandleFunc("/health", rmq.NewHealthHandler(rabbitmq.Config{
 		DSN: *amqpDSN,
 	}, f))
-	http.ListenAndServe(":31337", nil)
+	http.ListenAndServe(*listenAddr, nil)
 }
 
 func main() {
