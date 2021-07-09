@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/popovous/rabbitmq-healthcheck/internal/clusterinfo"
 
@@ -58,12 +59,35 @@ func NewHealthHandler(config rabbitmq.Config, ftch fetcher.Fetcher) func(w http.
 			return
 		}
 
-		err = hc(r.Context())
-		if err != nil {
-			log.Printf("[health-check] failed to check rabbitmq status: %s", err)
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- hc(r.Context())
+
+			if err != nil {
+				log.Printf("[health-check] failed to check rabbitmq status: %s", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				log.Println("[health-check] successfully checked rabbitmq status")
+			}
+		}()
+
+		select {
+		case <-time.After(200 * time.Millisecond):
+			log.Println("[health-check] failed to check rabbitmq status due to timeout")
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			log.Println("[health-check] successfully checked rabbitmq status")
+		case <-r.Context().Done():
+			log.Printf(
+				"[health-check] failed to check rabbitmq status: client disconnected: %s",
+				r.Context().Err(),
+			)
+			w.WriteHeader(499)
+		case err := <-errCh:
+			if err != nil {
+				log.Printf("[health-check] failed to check rabbitmq status: %s", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				log.Println("[health-check] successfully checked rabbitmq status")
+			}
 		}
 	}
 }
