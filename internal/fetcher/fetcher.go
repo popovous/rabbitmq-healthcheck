@@ -21,6 +21,7 @@ type Fetcher interface {
 	Start()
 	Stop() error
 	GetClusterInfo() []clusterinfo.Members
+	LastSuccessfulFetch() time.Time
 }
 
 type Config struct {
@@ -44,12 +45,13 @@ func (c *Config) withDefaults() *Config {
 }
 
 type defaultFetcher struct {
-	config     *Config
-	data       []clusterinfo.Members
-	client     *http.Client
-	mu         sync.RWMutex
-	onceCloser sync.Once
-	stop       chan struct{}
+	config              *Config
+	data                []clusterinfo.Members
+	client              *http.Client
+	mu                  sync.RWMutex
+	lastSuccessfulFetch time.Time
+	onceCloser          sync.Once
+	stop                chan struct{}
 }
 
 func (d *defaultFetcher) fetch() ([]clusterinfo.Members, error) {
@@ -92,8 +94,11 @@ func (d *defaultFetcher) Start() {
 				log.Println(err)
 			} else {
 				log.Println("successfully fetched data from RabbitMQ Management")
+
+				now := time.Now()
 				d.mu.Lock()
 				d.data = members
+				d.lastSuccessfulFetch = now
 				d.mu.Unlock()
 			}
 
@@ -121,6 +126,14 @@ func (d *defaultFetcher) GetClusterInfo() []clusterinfo.Members {
 	d.mu.RUnlock()
 
 	return data
+}
+
+func (d *defaultFetcher) LastSuccessfulFetch() time.Time {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	tm := d.lastSuccessfulFetch
+
+	return tm
 }
 
 func New(config *Config) Fetcher {

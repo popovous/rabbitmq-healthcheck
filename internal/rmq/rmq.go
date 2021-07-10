@@ -37,9 +37,22 @@ func isInCluster(info []clusterinfo.Members, hostname string) (isRunning bool, i
 	return isRunning, runningCnt == 1
 }
 
-func NewHealthHandler(config rabbitmq.Config, ftch fetcher.Fetcher) func(w http.ResponseWriter, r *http.Request) {
-	hc := rabbitmq.New(config)
+type HealthCheckerConfig struct {
+	RabbitMQConfig              rabbitmq.Config
+	LastClusterInfoFetchTimeout time.Duration
+	HealthCheckMaxDuration      time.Duration
+}
+
+func NewHealthHandler(config HealthCheckerConfig, ftch fetcher.Fetcher) func(w http.ResponseWriter, r *http.Request) {
+	hc := rabbitmq.New(config.RabbitMQConfig)
 	return func(w http.ResponseWriter, r *http.Request) {
+		lastFetch := ftch.LastSuccessfulFetch()
+		if time.Since(lastFetch) > config.LastClusterInfoFetchTimeout {
+			log.Printf("[health-check] failed to perform: time passed since last"+
+				"successful cluster info fetch %q is more than %q", lastFetch, config.LastClusterInfoFetchTimeout)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
 		cluster := ftch.GetClusterInfo()
 		host, err := os.Hostname()
 		if err != nil {
@@ -72,7 +85,7 @@ func NewHealthHandler(config rabbitmq.Config, ftch fetcher.Fetcher) func(w http.
 		}()
 
 		select {
-		case <-time.After(200 * time.Millisecond):
+		case <-time.After(config.HealthCheckMaxDuration):
 			log.Println("[health-check] failed to check rabbitmq status due to timeout")
 			w.WriteHeader(http.StatusInternalServerError)
 		case <-r.Context().Done():
